@@ -13,6 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	schedpkg "github.com/pschlump/httpcron/lib/scheduler"
+
 	"github.com/pschlump/httpcron/lib/handler"
 	"github.com/pschlump/httpcron/lib/repository"
 )
@@ -29,7 +31,8 @@ func newTestServer(t *testing.T) (*httptest.Server, func()) {
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := handler.NewHandler(repo, testRegKey, log)
+	// Note: Scheduler is nil for tests; the handler will skip scheduler operations when not started.
+	h := handler.NewHandler(repo, testRegKey, log, (*schedpkg.Scheduler)(nil))
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)

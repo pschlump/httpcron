@@ -41,18 +41,20 @@ func main() {
 
 	var wg sync.WaitGroup
 
+	// Create the scheduler (but don't start it yet).
+	sched := scheduler.New(repo, log)
+
 	// Goroutine 1 — HTTP server.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runHTTPServer(ctx, log, repo, addr, regKey)
+		runHTTPServer(ctx, log, repo, addr, regKey, sched)
 	}()
 
 	// Goroutine 2 — cron scheduler.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		sched := scheduler.New(repo, log)
 		if err := sched.Start(ctx); err != nil {
 			log.Error("scheduler error", "err", err)
 		}
@@ -62,8 +64,8 @@ func main() {
 	log.Info("shutdown complete")
 }
 
-func runHTTPServer(ctx context.Context, log *slog.Logger, repo *repository.Repository, addr, regKey string) {
-	h := handler.NewHandler(repo, regKey, log)
+func runHTTPServer(ctx context.Context, log *slog.Logger, repo *repository.Repository, addr, regKey string, sched *scheduler.Scheduler) {
+	h := handler.NewHandler(repo, regKey, log, sched)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)

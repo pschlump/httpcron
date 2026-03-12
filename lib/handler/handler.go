@@ -8,6 +8,7 @@ import (
 
 	"github.com/pschlump/englishtocron"
 	"github.com/pschlump/httpcron/lib/repository"
+	"github.com/pschlump/httpcron/lib/scheduler"
 )
 
 // humanToCron converts an English schedule description to a cron spec.
@@ -21,14 +22,16 @@ type Handler struct {
 	repo            *repository.Repository
 	registrationKey string
 	log             *slog.Logger
+	sched           *scheduler.Scheduler
 }
 
 // NewHandler creates a Handler with the given dependencies.
-func NewHandler(repo *repository.Repository, registrationKey string, log *slog.Logger) *Handler {
+func NewHandler(repo *repository.Repository, registrationKey string, log *slog.Logger, sched *scheduler.Scheduler) *Handler {
 	return &Handler{
 		repo:            repo,
 		registrationKey: registrationKey,
 		log:             log,
+		sched:           sched,
 	}
 }
 
@@ -145,6 +148,15 @@ func (h *Handler) CreateTimedEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	// Add the event to the running scheduler (if available).
+	if h.sched != nil {
+		if err := h.sched.AddEvent(r.Context(), *event); err != nil {
+			h.log.Error("add event to scheduler", "event_id", event.EventID, "err", err)
+			// Event was created in DB but not added to scheduler; log it but don't fail the request.
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"event_id": event.EventID})
 }
 
@@ -211,6 +223,26 @@ func (h *Handler) UpdateTimedEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	// Get the updated event from the database to pass to the scheduler (if available).
+	if h.sched != nil {
+		events, err := h.repo.ListEvents(r.Context(), user.UserID)
+		if err != nil {
+			h.log.Error("list events after update", "err", err)
+		} else {
+			for _, ev := range events {
+				if ev.EventID == req.EventID {
+					// Update the event in the running scheduler.
+					if err := h.sched.UpdateEvent(r.Context(), ev); err != nil {
+						h.log.Error("update event in scheduler", "event_id", ev.EventID, "err", err)
+						// Event was updated in DB but not in scheduler; log it but don't fail the request.
+					}
+					break
+				}
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -241,6 +273,15 @@ func (h *Handler) DeleteTimedEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	// Remove the event from the running scheduler (if available).
+	if h.sched != nil {
+		if err := h.sched.DeleteEvent(r.Context(), req.EventID); err != nil {
+			h.log.Error("delete event from scheduler", "event_id", req.EventID, "err", err)
+			// Event was deleted from DB but not from scheduler; log it but don't fail the request.
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
