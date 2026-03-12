@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/go-chi/chi/v5 v5.2.5
+	github.com/pschlump/englishtocron v0.1.0
 	github.com/robfig/cron/v3 v3.0.0
 	modernc.org/sqlite v1.46.1
 )

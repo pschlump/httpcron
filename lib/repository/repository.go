@@ -30,6 +30,8 @@ type UserEvent struct {
 	CronSpec     string    `json:"cron_spec,omitempty"`
 	HumanSpec    string    `json:"human_spec,omitempty"`
 	BodyTemplate string    `json:"body_template,omitempty"`
+	URL          string    `json:"url,omitempty"`
+	HTTPMethod   string    `json:"http_method,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -40,6 +42,8 @@ type UpdateEventParams struct {
 	CronSpec     *string
 	HumanSpec    *string
 	BodyTemplate *string
+	URL          *string
+	HTTPMethod   *string
 }
 
 // Repository wraps a SQLite database connection.
@@ -86,8 +90,19 @@ func (r *Repository) migrate() error {
 		created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
-	_, err := r.db.Exec(schema)
-	return err
+	if _, err := r.db.Exec(schema); err != nil {
+		return err
+	}
+	// SQLite has no ADD COLUMN IF NOT EXISTS; try each and ignore duplicate-column errors.
+	for _, stmt := range []string{
+		`ALTER TABLE user_events ADD COLUMN url TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE user_events ADD COLUMN http_method TEXT NOT NULL DEFAULT 'POST'`,
+	} {
+		if _, err := r.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	return nil
 }
 
 // newUUID generates a random RFC-4122 v4 UUID string.
@@ -141,7 +156,7 @@ func (r *Repository) GetUserByAPIKey(ctx context.Context, apiKey string) (*Regis
 }
 
 // CreateEvent inserts a new user event and returns it with a generated event_id.
-func (r *Repository) CreateEvent(ctx context.Context, userID, eventName, cronSpec, humanSpec, bodyTemplate string) (*UserEvent, error) {
+func (r *Repository) CreateEvent(ctx context.Context, userID, eventName, cronSpec, humanSpec, bodyTemplate, url, httpMethod string) (*UserEvent, error) {
 	event := &UserEvent{
 		EventID:      "evid-" + newUUID(),
 		UserID:       userID,
@@ -149,11 +164,13 @@ func (r *Repository) CreateEvent(ctx context.Context, userID, eventName, cronSpe
 		CronSpec:     cronSpec,
 		HumanSpec:    humanSpec,
 		BodyTemplate: bodyTemplate,
+		URL:          url,
+		HTTPMethod:   httpMethod,
 	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO user_events (event_id, user_id, event_name, cron_spec, human_spec, body_template)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		event.EventID, event.UserID, event.EventName, event.CronSpec, event.HumanSpec, event.BodyTemplate,
+		`INSERT INTO user_events (event_id, user_id, event_name, cron_spec, human_spec, body_template, url, http_method)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		event.EventID, event.UserID, event.EventName, event.CronSpec, event.HumanSpec, event.BodyTemplate, event.URL, event.HTTPMethod,
 	)
 	if err != nil {
 		return nil, err
@@ -182,6 +199,14 @@ func (r *Repository) UpdateEvent(ctx context.Context, eventID, userID string, pa
 	if params.BodyTemplate != nil {
 		setClauses = append(setClauses, "body_template = ?")
 		args = append(args, *params.BodyTemplate)
+	}
+	if params.URL != nil {
+		setClauses = append(setClauses, "url = ?")
+		args = append(args, *params.URL)
+	}
+	if params.HTTPMethod != nil {
+		setClauses = append(setClauses, "http_method = ?")
+		args = append(args, *params.HTTPMethod)
 	}
 
 	args = append(args, eventID, userID)
@@ -224,7 +249,7 @@ func scanEvents(rows *sql.Rows) ([]UserEvent, error) {
 	var events []UserEvent
 	for rows.Next() {
 		var e UserEvent
-		if err := rows.Scan(&e.EventID, &e.UserID, &e.EventName, &e.CronSpec, &e.HumanSpec, &e.BodyTemplate, &e.CreatedAt, &e.UpdatedAt); err != nil {
+		if err := rows.Scan(&e.EventID, &e.UserID, &e.EventName, &e.CronSpec, &e.HumanSpec, &e.BodyTemplate, &e.URL, &e.HTTPMethod, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, err
 		}
 		events = append(events, e)
@@ -232,7 +257,7 @@ func scanEvents(rows *sql.Rows) ([]UserEvent, error) {
 	return events, rows.Err()
 }
 
-const eventSelectCols = `event_id, user_id, event_name, cron_spec, human_spec, body_template, created_at, updated_at`
+const eventSelectCols = `event_id, user_id, event_name, cron_spec, human_spec, body_template, url, http_method, created_at, updated_at`
 
 // ListEvents returns all events belonging to userID, newest first.
 func (r *Repository) ListEvents(ctx context.Context, userID string) ([]UserEvent, error) {
@@ -252,6 +277,18 @@ func (r *Repository) SearchEvents(ctx context.Context, userID, eventName string)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+eventSelectCols+` FROM user_events WHERE user_id = ? AND event_name LIKE ? ORDER BY created_at DESC`,
 		userID, "%"+eventName+"%",
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanEvents(rows)
+}
+
+// ListAllEvents returns every event across all users. Used by the cron scheduler on startup.
+func (r *Repository) ListAllEvents(ctx context.Context) ([]UserEvent, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+eventSelectCols+` FROM user_events ORDER BY created_at DESC`,
 	)
 	if err != nil {
 		return nil, err

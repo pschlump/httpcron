@@ -6,8 +6,15 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/pschlump/englishtocron"
 	"github.com/pschlump/httpcron/lib/repository"
 )
+
+// humanToCron converts an English schedule description to a cron spec.
+// Returns an error if the description cannot be parsed.
+func humanToCron(humanSpec string) (string, error) {
+	return englishtocron.StrCronSyntax(humanSpec)
+}
 
 // Handler holds dependencies for all HTTP handlers.
 type Handler struct {
@@ -88,11 +95,13 @@ func (h *Handler) SelfRegister(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/create-timed-event ----------------------------------------
 
 type createTimedEventRequest struct {
-	EventName    string `json:"event_name"`
+	EventName     string `json:"event_name"`
 	PerUserAPIKey string `json:"per_user_api_key"`
-	CronSpec     string `json:"cron_spec"`
-	HumanSpec    string `json:"human_spec"`
-	BodyTemplate string `json:"body_template"`
+	CronSpec      string `json:"cron_spec"`
+	HumanSpec     string `json:"human_spec"`
+	BodyTemplate  string `json:"body_template"`
+	URL           string `json:"url"`
+	HTTPMethod    string `json:"http_method"`
 }
 
 // CreateTimedEvent creates a new scheduled event for the authenticated user.
@@ -110,6 +119,14 @@ func (h *Handler) CreateTimedEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "cron_spec or human_spec is required")
 		return
 	}
+	if req.HumanSpec != "" && req.CronSpec == "" {
+		spec, err := humanToCron(req.HumanSpec)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "cannot parse human_spec: "+err.Error())
+			return
+		}
+		req.CronSpec = spec
+	}
 
 	user, err := h.repo.GetUserByAPIKey(r.Context(), req.PerUserAPIKey)
 	if err != nil {
@@ -122,7 +139,7 @@ func (h *Handler) CreateTimedEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo.CreateEvent(r.Context(), user.UserID, req.EventName, req.CronSpec, req.HumanSpec, req.BodyTemplate)
+	event, err := h.repo.CreateEvent(r.Context(), user.UserID, req.EventName, req.CronSpec, req.HumanSpec, req.BodyTemplate, req.URL, req.HTTPMethod)
 	if err != nil {
 		h.log.Error("create event", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -134,12 +151,14 @@ func (h *Handler) CreateTimedEvent(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/update-timed-event ----------------------------------------
 
 type updateTimedEventRequest struct {
-	EventID      string  `json:"event_id"`
+	EventID       string  `json:"event_id"`
 	PerUserAPIKey string  `json:"per_user_api_key"`
-	EventName    *string `json:"event_name"`
-	CronSpec     *string `json:"cron_spec"`
-	HumanSpec    *string `json:"human_spec"`
-	BodyTemplate *string `json:"body_template"`
+	EventName     *string `json:"event_name"`
+	CronSpec      *string `json:"cron_spec"`
+	HumanSpec     *string `json:"human_spec"`
+	BodyTemplate  *string `json:"body_template"`
+	URL           *string `json:"url"`
+	HTTPMethod    *string `json:"http_method"`
 }
 
 // UpdateTimedEvent updates the specified fields of an existing event.
@@ -165,11 +184,23 @@ func (h *Handler) UpdateTimedEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If human_spec is provided without an explicit cron_spec, derive cron_spec from it.
+	if req.HumanSpec != nil && *req.HumanSpec != "" && req.CronSpec == nil {
+		spec, err := humanToCron(*req.HumanSpec)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "cannot parse human_spec: "+err.Error())
+			return
+		}
+		req.CronSpec = &spec
+	}
+
 	params := repository.UpdateEventParams{
 		EventName:    req.EventName,
 		CronSpec:     req.CronSpec,
 		HumanSpec:    req.HumanSpec,
 		BodyTemplate: req.BodyTemplate,
+		URL:          req.URL,
+		HTTPMethod:   req.HTTPMethod,
 	}
 	if err := h.repo.UpdateEvent(r.Context(), req.EventID, user.UserID, params); err != nil {
 		if err.Error() == "event not found" {

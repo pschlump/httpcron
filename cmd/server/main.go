@@ -1,4 +1,4 @@
-// Command server starts the HTTPCron HTTP server.
+// Command server starts the HTTPCron HTTP server and cron scheduler.
 package main
 
 import (
@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	httpapi "github.com/pschlump/httpcron/api"
 	"github.com/pschlump/httpcron/lib/handler"
 	"github.com/pschlump/httpcron/lib/repository"
+	"github.com/pschlump/httpcron/lib/scheduler"
 )
 
 func main() {
@@ -33,6 +35,34 @@ func main() {
 	}
 	defer repo.Close()
 
+	// ctx is cancelled on SIGINT/SIGTERM; both goroutines watch it.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	var wg sync.WaitGroup
+
+	// Goroutine 1 — HTTP server.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runHTTPServer(ctx, log, repo, addr, regKey)
+	}()
+
+	// Goroutine 2 — cron scheduler.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sched := scheduler.New(repo, log)
+		if err := sched.Start(ctx); err != nil {
+			log.Error("scheduler error", "err", err)
+		}
+	}()
+
+	wg.Wait()
+	log.Info("shutdown complete")
+}
+
+func runHTTPServer(ctx context.Context, log *slog.Logger, repo *repository.Repository, addr, regKey string) {
 	h := handler.NewHandler(repo, regKey, log)
 
 	r := chi.NewRouter()
@@ -42,7 +72,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
-	// API endpoints
+	// API endpoints.
 	r.Post("/api/v1/self-register", h.SelfRegister)
 	r.Post("/api/v1/create-timed-event", h.CreateTimedEvent)
 	r.Post("/api/v1/update-timed-event", h.UpdateTimedEvent)
@@ -50,13 +80,13 @@ func main() {
 	r.Post("/api/v1/list-timed-event", h.ListTimedEvent)
 	r.Post("/api/v1/search-timed-event", h.SearchTimedEvent)
 
-	// OpenAPI spec
+	// OpenAPI spec.
 	r.Get("/api/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-yaml")
 		_, _ = w.Write(httpapi.OpenAPISpec)
 	})
 
-	// Swagger UI — strip the "swagger-ui" directory prefix from the embedded FS
+	// Swagger UI — strip the "swagger-ui" directory prefix from the embedded FS.
 	uiFS, err := fs.Sub(httpapi.SwaggerUIFS, "swagger-ui")
 	if err != nil {
 		log.Error("prepare swagger-ui fs", "err", err)
@@ -67,21 +97,14 @@ func main() {
 
 	srv := &http.Server{Addr: addr, Handler: r}
 
-	// Graceful shutdown
-	idleConnsClosed := make(chan struct{})
+	// Shut down the HTTP server when ctx is cancelled.
 	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-
-		log.Info("shutdown signal received")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		<-ctx.Done()
+		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Error("graceful shutdown failed", "err", err)
+		if err := srv.Shutdown(shutCtx); err != nil {
+			log.Error("http server shutdown failed", "err", err)
 		}
-		close(idleConnsClosed)
 	}()
 
 	log.Info("server starting", "addr", addr)
@@ -89,8 +112,7 @@ func main() {
 		log.Error("listen", "err", err)
 		os.Exit(1)
 	}
-	<-idleConnsClosed
-	log.Info("server stopped")
+	log.Info("http server stopped")
 }
 
 func getenv(key, defaultVal string) string {
