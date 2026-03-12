@@ -102,8 +102,8 @@ type createTimedEventRequest struct {
 	CronSpec      string `json:"cron_spec"`
 	HumanSpec     string `json:"human_spec"`
 	BodyTemplate  string `json:"body_template"`
-	URL           string `json:"url"`
-	HTTPMethod    string `json:"http_method"`
+	URL           string `json:"url" validate:"required"`
+	HTTPMethod    string `json:"http_method" default:"POST"`
 }
 
 // CreateTimedEvent creates a new scheduled event for the authenticated user.

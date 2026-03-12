@@ -65,12 +65,15 @@ func main() {
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	// TODO - move most of this into the config struct
-	dbPath := getenv("DB_PATH", "httpcron.db")
-	addr := getenv("ADDR", ":8080")
-	regKey := getenv("REGISTRATION_KEY", "dev-registration-key")
+	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port) // addr := getenv("ADDR", ":8080")
+	// regKey := getenv("REGISTRATION_KEY", "dev-registration-key")
+	regKey := getenv("REGISTRATION_KEY", "")
+	if regKey == "" {
+		log.Error("REGISTRATION_KEY not set in enviroment, couerdly refusing to run.")
+		os.Exit(1)
+	}
 
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(cfg.Server.DbPath)
 	if err != nil {
 		log.Error("open database", "err", err)
 		os.Exit(1)

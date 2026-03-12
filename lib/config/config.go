@@ -11,8 +11,9 @@ import (
 // Config contains the configuration of the url shortener.
 type Config struct {
 	Server struct {
-		Host string `json:"host" default:"127.0.0.1"`
-		Port string `json:"port" default:"9118"`
+		Host   string `json:"host" default:"127.0.0.1"`
+		Port   string `json:"port" default:"9118"`
+		DbPath string `json:"db_path" default:"httpcron.db"`
 	} `json:"server"`
 	Debug struct {
 		Enabled map[string]bool `json:"enabled"`
