@@ -42,4 +42,8 @@ lint:
 clean:
 	rm -rf $(BIN_DIR) $(DB_PATH)
 
+git_set_tag:
+	git tag v0.0.1
+	git push origin --tags
+
 .DEFAULT_GOAL := build

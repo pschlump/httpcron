@@ -1,2 +1,4 @@
 httpcron
+bin/httpcron
+httpcron.db
 ,*
