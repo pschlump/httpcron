@@ -1,0 +1,307 @@
+openapi: "3.0.0"
+info:
+  title: HTTPCron API
+  description: HTTP Cron Job Manager — register users and manage timed events
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /api/v1/self-register:
+    post:
+      operationId: selfRegister
+      summary: Register a new user
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelfRegisterRequest'
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfRegisterResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/create-timed-event:
+    post:
+      operationId: createTimedEvent
+      summary: Create a new timed event
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimedEventRequest'
+      responses:
+        '200':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTimedEventResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/update-timed-event:
+    post:
+      operationId: updateTimedEvent
+      summary: Update an existing timed event (all fields except event_id and per_user_api_key are optional)
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTimedEventRequest'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/delete-timed-event:
+    post:
+      operationId: deleteTimedEvent
+      summary: Delete a timed event
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteTimedEventRequest'
+      responses:
+        '200':
+          description: Event deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/list-timed-event:
+    post:
+      operationId: listTimedEvents
+      summary: List all timed events for a user
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerUserAPIKeyRequest'
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/search-timed-event:
+    post:
+      operationId: searchTimedEvents
+      summary: Search timed events by name (partial match)
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchTimedEventRequest'
+      responses:
+        '200':
+          description: Matching events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+components:
+  schemas:
+    SelfRegisterRequest:
+      type: object
+      required: [host_name, registration_key, host_url]
+      properties:
+        host_name:
+          type: string
+          example: my-host
+        registration_key:
+          type: string
+          example: "your-registration-key"
+        host_url:
+          type: string
+          example: "http://localhost:9090"
+
+    SelfRegisterResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+        per_user_api_key:
+          type: string
+
+    CreateTimedEventRequest:
+      type: object
+      required: [event_name, per_user_api_key]
+      properties:
+        event_name:
+          type: string
+        per_user_api_key:
+          type: string
+        cron_spec:
+          type: string
+          description: "Cron specification (required if human_spec not provided)"
+        human_spec:
+          type: string
+          description: "Human-readable schedule e.g. '@every 5m' (required if cron_spec not provided)"
+        body_template:
+          type: string
+          description: "Go text template for the callback POST body"
+
+    CreateTimedEventResponse:
+      type: object
+      properties:
+        event_id:
+          type: string
+
+    UpdateTimedEventRequest:
+      type: object
+      required: [event_id, per_user_api_key]
+      properties:
+        event_id:
+          type: string
+        event_name:
+          type: string
+        per_user_api_key:
+          type: string
+        cron_spec:
+          type: string
+        human_spec:
+          type: string
+        body_template:
+          type: string
+
+    DeleteTimedEventRequest:
+      type: object
+      required: [event_id]
+      properties:
+        event_id:
+          type: string
+
+    PerUserAPIKeyRequest:
+      type: object
+      required: [per_user_api_key]
+      properties:
+        per_user_api_key:
+          type: string
+
+    SearchTimedEventRequest:
+      type: object
+      required: [per_user_api_key]
+      properties:
+        per_user_api_key:
+          type: string
+        event_name:
+          type: string
+          description: "Partial name to search for"
+
+    UserEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+        user_id:
+          type: string
+        event_name:
+          type: string
+        cron_spec:
+          type: string
+        human_spec:
+          type: string
+        body_template:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    EventListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserEvent'
+
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
