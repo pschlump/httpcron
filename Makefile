@@ -45,7 +45,7 @@ clean:
 
 # git push origin v1.0.0
 git_set_tag:
-	git tag v0.0.2
+	git tag v0.0.3
 	git push origin --tags
 
 .DEFAULT_GOAL := build

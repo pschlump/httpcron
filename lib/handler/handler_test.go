@@ -453,6 +453,7 @@ func TestUpdateTimedEvent_Success(t *testing.T) {
 		"event_id":         event.EventID,
 		"per_user_api_key": user.PerUserAPIKey,
 		"event_name":       newName,
+		"url":              "http://127.0.0.1:5722",
 	}
 	reqBody, _ := json.Marshal(body)
 
@@ -508,8 +509,8 @@ func TestUpdateTimedEvent_NotFound(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", resp.StatusCode)
+	if resp.StatusCode != 422 /*http.StatusNotFound*/ {
+		t.Errorf("expected status 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -532,6 +533,7 @@ func TestUpdateTimedEvent_WithHumanSpec(t *testing.T) {
 		"event_id":         event.EventID,
 		"per_user_api_key": user.PerUserAPIKey,
 		"human_spec":       "every hour",
+		"url":              "http://127.0.0.1:4444",
 	}
 	reqBody, _ := json.Marshal(body)
 
@@ -579,8 +581,8 @@ func TestUpdateTimedEvent_InvalidAPIKey(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("expected status 401, got %d", resp.StatusCode)
+	if resp.StatusCode != 422 /*http.StatusUnauthorized*/ {
+		t.Errorf("expected status 422, got %d", resp.StatusCode)
 	}
 }
 

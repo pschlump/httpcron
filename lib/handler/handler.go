@@ -63,7 +63,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 type selfRegisterRequest struct {
 	HostName        string `json:"host_name" validate:"required"`
 	RegistrationKey string `json:"registration_key" validate:"required"`
-	HostURL         string `json:"host_url" validate:"required"`
+	HostURL         string `json:"host_url" validate:"required,url"`
 }
 
 type selfRegisterResponse struct {
@@ -102,7 +102,7 @@ type createTimedEventRequest struct {
 	CronSpec      string `json:"cron_spec"`
 	HumanSpec     string `json:"human_spec"`
 	BodyTemplate  string `json:"body_template"`
-	URL           string `json:"url" validate:"required"`
+	URL           string `json:"url" validate:"required,url"`
 	HTTPMethod    string `json:"http_method" default:"POST"`
 }
 
@@ -163,7 +163,7 @@ type updateTimedEventRequest struct {
 	CronSpec      *string `json:"cron_spec"`
 	HumanSpec     *string `json:"human_spec"`
 	BodyTemplate  *string `json:"body_template"`
-	URL           *string `json:"url"`
+	URL           *string `json:"url" validate:"url"`
 	HTTPMethod    *string `json:"http_method"`
 }
 
