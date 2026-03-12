@@ -1,0 +1,15 @@
+{
+	"server": {
+		"host": "0.0.0.0",
+		"port": "8080"
+	},
+	"debug": {
+		"enabled": {
+			"flag1": true,
+			"flag2": true,
+			"flag3": false
+		}
+	},
+	"Version": "",
+	"BuildDate": ""
+}

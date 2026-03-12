@@ -3,7 +3,10 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"io/fs"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,14 +19,53 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	httpapi "github.com/pschlump/httpcron/api"
+	"github.com/pschlump/httpcron/lib/config"
 	"github.com/pschlump/httpcron/lib/handler"
 	"github.com/pschlump/httpcron/lib/repository"
 	"github.com/pschlump/httpcron/lib/scheduler"
 )
 
+var cfg *config.Config
+
+var configPathFlag = flag.String("cfg", "config.json", "path of the cfg file")
+var DbFlagParamFlag = flag.String("db_flag", "", "Additional Debug Flags")
+var VersionFlag = flag.Bool("version", false, "Report version of code and exit")
+var CommentFlag = flag.String("comment", "", "Unused comment for ps.")
+var CdToFlag = flag.String("CdTo", ".", "Change directory to before running server.")
+
+var DbOn map[string]bool
+var curDir string
+
 func main() {
+	var err error
+
+	flag.Parse()
+
+	if *CdToFlag != "" {
+		err := os.Chdir(*CdToFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Uable to chagne to %s directory, error:%s\n", *CdToFlag, err)
+			os.Exit(1)
+		}
+	}
+
+	if *VersionFlag {
+		fmt.Printf("Version (Git Commit Version): %s Built on: %s\n", Version, BuildDate)
+		os.Exit(0)
+	}
+
+	// Read config
+	cfg, err = config.FromFile(*configPathFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cfg.Version = Version
+	cfg.BuildDate = BuildDate
+
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	// TODO - move most of this into the config struct
 	dbPath := getenv("DB_PATH", "httpcron.db")
 	addr := getenv("ADDR", ":8080")
 	regKey := getenv("REGISTRATION_KEY", "dev-registration-key")
@@ -48,7 +90,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runHTTPServer(ctx, log, repo, addr, regKey, sched)
+		runHTTPServer(ctx, log, repo, addr, regKey, sched, cfg)
 	}()
 
 	// Goroutine 2 — cron scheduler.
@@ -64,8 +106,8 @@ func main() {
 	log.Info("shutdown complete")
 }
 
-func runHTTPServer(ctx context.Context, log *slog.Logger, repo *repository.Repository, addr, regKey string, sched *scheduler.Scheduler) {
-	h := handler.NewHandler(repo, regKey, log, sched)
+func runHTTPServer(ctx context.Context, log *slog.Logger, repo *repository.Repository, addr, regKey string, sched *scheduler.Scheduler, cfg *config.Config) {
+	h := handler.NewHandler(repo, regKey, log, sched, cfg)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)

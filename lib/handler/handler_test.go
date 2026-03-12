@@ -28,7 +28,7 @@ func newTestHandler(t *testing.T) (*Handler, func()) {
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewHandler(repo, testRegKey, log, nil)
+	h := NewHandler(repo, testRegKey, log, nil, nil)
 
 	cleanup := func() {
 		repo.Close()
@@ -49,7 +49,7 @@ func TestNewHandler(t *testing.T) {
 	os.Remove(dbPath)
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	h := NewHandler(repo, testRegKey, log, nil)
+	h := NewHandler(repo, testRegKey, log, nil, nil)
 
 	if h == nil {
 		t.Fatal("NewHandler returned nil")
@@ -151,7 +151,7 @@ func TestSelfRegister_MissingFields(t *testing.T) {
 				"registration_key": testRegKey,
 				"host_url":         "http://localhost:8080",
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name: "missing registration_key",
@@ -159,7 +159,7 @@ func TestSelfRegister_MissingFields(t *testing.T) {
 				"host_name": "test-host",
 				"host_url":  "http://localhost:8080",
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name: "missing host_url",
@@ -167,12 +167,12 @@ func TestSelfRegister_MissingFields(t *testing.T) {
 				"host_name":        "test-host",
 				"registration_key": testRegKey,
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "empty body",
 			body:       map[string]string{},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -353,7 +353,7 @@ func TestCreateTimedEvent_MissingRequiredFields(t *testing.T) {
 				"per_user_api_key": user.PerUserAPIKey,
 				"cron_spec":        "0 0 * * *",
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name: "missing per_user_api_key",
@@ -361,7 +361,7 @@ func TestCreateTimedEvent_MissingRequiredFields(t *testing.T) {
 				"event_name": "test-event",
 				"cron_spec":  "0 0 * * *",
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name: "missing both cron_spec and human_spec",
@@ -651,7 +651,7 @@ func TestDeleteTimedEvent_NotFound(t *testing.T) {
 	}
 }
 
-// TestDeleteTimedEvent_MissingEventID verifies that missing event_id returns 400.
+// TestDeleteTimedEvent_MissingEventID verifies that missing event_id returns 422.
 func TestDeleteTimedEvent_MissingEventID(t *testing.T) {
 	h, cleanup := newTestHandler(t)
 	defer cleanup()
@@ -668,8 +668,8 @@ func TestDeleteTimedEvent_MissingEventID(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected status 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -954,8 +954,8 @@ func TestSchedulerIntegration(t *testing.T) {
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	// Create handler with nil scheduler (simulating test environment).
-	h := NewHandler(repo, testRegKey, log, nil)
+	// Create handler with nil scheduler and cfg (simulating test environment).
+	h := NewHandler(repo, testRegKey, log, nil, nil)
 
 	user, err := repo.CreateUser(context.Background(), "test-host", "http://localhost:8080")
 	if err != nil {

@@ -31,8 +31,8 @@ func newTestServer(t *testing.T) (*httptest.Server, func()) {
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	// Note: Scheduler is nil for tests; the handler will skip scheduler operations when not started.
-	h := handler.NewHandler(repo, testRegKey, log, (*schedpkg.Scheduler)(nil))
+	// Note: Scheduler and cfg are nil for tests; the handler will skip scheduler operations when not started.
+	h := handler.NewHandler(repo, testRegKey, log, (*schedpkg.Scheduler)(nil), nil)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -129,8 +129,8 @@ func TestSelfRegister_MissingFields(t *testing.T) {
 	resp, _ := postJSON(t, ts, "/api/v1/self-register", map[string]string{
 		"host_name": "only-name",
 	})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

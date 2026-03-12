@@ -7,8 +7,10 @@ import (
 	"net/http"
 
 	"github.com/pschlump/englishtocron"
+	"github.com/pschlump/httpcron/lib/config"
 	"github.com/pschlump/httpcron/lib/repository"
 	"github.com/pschlump/httpcron/lib/scheduler"
+	"github.com/pschlump/httpcron/lib/utils"
 )
 
 // humanToCron converts an English schedule description to a cron spec.
@@ -23,15 +25,17 @@ type Handler struct {
 	registrationKey string
 	log             *slog.Logger
 	sched           *scheduler.Scheduler
+	cfg             *config.Config
 }
 
 // NewHandler creates a Handler with the given dependencies.
-func NewHandler(repo *repository.Repository, registrationKey string, log *slog.Logger, sched *scheduler.Scheduler) *Handler {
+func NewHandler(repo *repository.Repository, registrationKey string, log *slog.Logger, sched *scheduler.Scheduler, cfg *config.Config) *Handler {
 	return &Handler{
 		repo:            repo,
 		registrationKey: registrationKey,
 		log:             log,
 		sched:           sched,
+		cfg:             cfg,
 	}
 }
 
@@ -57,9 +61,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // --- POST /api/v1/self-register ---------------------------------------------
 
 type selfRegisterRequest struct {
-	HostName        string `json:"host_name"`
-	RegistrationKey string `json:"registration_key"`
-	HostURL         string `json:"host_url"`
+	HostName        string `json:"host_name" validate:"required"`
+	RegistrationKey string `json:"registration_key" validate:"required"`
+	HostURL         string `json:"host_url" validate:"required"`
 }
 
 type selfRegisterResponse struct {
@@ -70,12 +74,7 @@ type selfRegisterResponse struct {
 // SelfRegister validates the registration_key and creates a new user.
 func (h *Handler) SelfRegister(w http.ResponseWriter, r *http.Request) {
 	var req selfRegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if req.HostName == "" || req.RegistrationKey == "" || req.HostURL == "" {
-		writeError(w, http.StatusBadRequest, "host_name, registration_key, and host_url are required")
+	if err := utils.JsonBody(w, r, h.cfg, &req); err != nil {
 		return
 	}
 	if req.RegistrationKey != h.registrationKey {
@@ -98,8 +97,8 @@ func (h *Handler) SelfRegister(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/create-timed-event ----------------------------------------
 
 type createTimedEventRequest struct {
-	EventName     string `json:"event_name"`
-	PerUserAPIKey string `json:"per_user_api_key"`
+	EventName     string `json:"event_name" validate:"required"`
+	PerUserAPIKey string `json:"per_user_api_key" validate:"required"`
 	CronSpec      string `json:"cron_spec"`
 	HumanSpec     string `json:"human_spec"`
 	BodyTemplate  string `json:"body_template"`
@@ -110,12 +109,7 @@ type createTimedEventRequest struct {
 // CreateTimedEvent creates a new scheduled event for the authenticated user.
 func (h *Handler) CreateTimedEvent(w http.ResponseWriter, r *http.Request) {
 	var req createTimedEventRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if req.EventName == "" || req.PerUserAPIKey == "" {
-		writeError(w, http.StatusBadRequest, "event_name and per_user_api_key are required")
+	if err := utils.JsonBody(w, r, h.cfg, &req); err != nil {
 		return
 	}
 	if req.CronSpec == "" && req.HumanSpec == "" {
@@ -163,8 +157,8 @@ func (h *Handler) CreateTimedEvent(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/update-timed-event ----------------------------------------
 
 type updateTimedEventRequest struct {
-	EventID       string  `json:"event_id"`
-	PerUserAPIKey string  `json:"per_user_api_key"`
+	EventID       string  `json:"event_id" validate:"required"`
+	PerUserAPIKey string  `json:"per_user_api_key" validate:"required"`
 	EventName     *string `json:"event_name"`
 	CronSpec      *string `json:"cron_spec"`
 	HumanSpec     *string `json:"human_spec"`
@@ -176,12 +170,7 @@ type updateTimedEventRequest struct {
 // UpdateTimedEvent updates the specified fields of an existing event.
 func (h *Handler) UpdateTimedEvent(w http.ResponseWriter, r *http.Request) {
 	var req updateTimedEventRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if req.EventID == "" || req.PerUserAPIKey == "" {
-		writeError(w, http.StatusBadRequest, "event_id and per_user_api_key are required")
+	if err := utils.JsonBody(w, r, h.cfg, &req); err != nil {
 		return
 	}
 
@@ -249,18 +238,13 @@ func (h *Handler) UpdateTimedEvent(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/delete-timed-event ----------------------------------------
 
 type deleteTimedEventRequest struct {
-	EventID string `json:"event_id"`
+	EventID string `json:"event_id" validate:"required"`
 }
 
 // DeleteTimedEvent removes the specified event.
 func (h *Handler) DeleteTimedEvent(w http.ResponseWriter, r *http.Request) {
 	var req deleteTimedEventRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if req.EventID == "" {
-		writeError(w, http.StatusBadRequest, "event_id is required")
+	if err := utils.JsonBody(w, r, h.cfg, &req); err != nil {
 		return
 	}
 
@@ -288,7 +272,7 @@ func (h *Handler) DeleteTimedEvent(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/list-timed-event ------------------------------------------
 
 type perUserAPIKeyRequest struct {
-	PerUserAPIKey string `json:"per_user_api_key"`
+	PerUserAPIKey string `json:"per_user_api_key" validate:"required"`
 }
 
 type eventListResponse struct {
@@ -299,12 +283,7 @@ type eventListResponse struct {
 // ListTimedEvent returns all events for the authenticated user.
 func (h *Handler) ListTimedEvent(w http.ResponseWriter, r *http.Request) {
 	var req perUserAPIKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if req.PerUserAPIKey == "" {
-		writeError(w, http.StatusBadRequest, "per_user_api_key is required")
+	if err := utils.JsonBody(w, r, h.cfg, &req); err != nil {
 		return
 	}
 
@@ -334,19 +313,14 @@ func (h *Handler) ListTimedEvent(w http.ResponseWriter, r *http.Request) {
 // --- POST /api/v1/search-timed-event ----------------------------------------
 
 type searchTimedEventRequest struct {
-	PerUserAPIKey string `json:"per_user_api_key"`
+	PerUserAPIKey string `json:"per_user_api_key" validate:"required"`
 	EventName     string `json:"event_name"`
 }
 
 // SearchTimedEvent returns events whose name partially matches the given string.
 func (h *Handler) SearchTimedEvent(w http.ResponseWriter, r *http.Request) {
 	var req searchTimedEventRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if req.PerUserAPIKey == "" {
-		writeError(w, http.StatusBadRequest, "per_user_api_key is required")
+	if err := utils.JsonBody(w, r, h.cfg, &req); err != nil {
 		return
 	}
 

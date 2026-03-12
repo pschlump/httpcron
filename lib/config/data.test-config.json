@@ -1,0 +1,23 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": "8080"
+  },
+  "options": {
+    "prefix": "http://localhost:8080/"
+  },
+  "postgres": {
+    "host": "127.0.0.1",
+    "port": "5432",
+    "user": "philip",
+    "password": "nope",
+    "db": "philip"
+  },
+  "debug": {
+	"enabled": {
+		"flag1": true,
+		"flag2": true,
+		"flag3": false
+	}
+  }
+}
