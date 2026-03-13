@@ -46,7 +46,7 @@ wget -o ./out/every-5-sec.err -O ./out/every-5-sec.json \
   --header="Content-Type: application/json" \
   --body-data='{
 		"event_name":"5 second test event",
-		"cron_spec":"* */5 * * * *",
+		"cron_spec":"*/5 * * * * *",
 		"per_user_api_key":"'"$per_user_api_key"'",
 		"url":"http://127.0.0.1:8080/index.html",
 		"http_method":"GET"}' \

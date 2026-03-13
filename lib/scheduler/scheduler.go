@@ -15,6 +15,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/httpcron/lib/repository"
 )
 
@@ -26,21 +27,21 @@ type ScheduledEvent struct {
 
 // SchedulerOp represents an operation on the scheduler (add, update, delete).
 type SchedulerOp struct {
-	Op      string // "add", "update", "delete"
-	Event   repository.UserEvent
-	Result  chan error
+	Op     string // "add", "update", "delete"
+	Event  repository.UserEvent
+	Result chan error
 }
 
 // Scheduler loads events from the repository and fires HTTP requests on their cron schedules.
 type Scheduler struct {
-	repo       *repository.Repository
-	log        *slog.Logger
-	client     *http.Client
-	cron       *cron.Cron
-	events     map[string]ScheduledEvent // event_id -> ScheduledEvent
-	eventsMu   sync.RWMutex
-	opChan     chan SchedulerOp
-	started    bool
+	repo     *repository.Repository
+	log      *slog.Logger
+	client   *http.Client
+	cron     *cron.Cron
+	events   map[string]ScheduledEvent // event_id -> ScheduledEvent
+	eventsMu sync.RWMutex
+	opChan   chan SchedulerOp
+	started  bool
 }
 
 // New creates a Scheduler.
@@ -89,7 +90,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			continue
 		}
 
-		if entryID, err := s.cron.AddFunc(spec, func() { s.runJob(ev) }); err != nil {
+		if entryID, err := s.cron.AddFunc(spec, func() { go s.runJob(ev) }); err != nil {
 			s.log.Error("scheduler: invalid cron_spec",
 				"event_id", ev.EventID, "spec", spec, "err", err)
 		} else {
@@ -204,7 +205,7 @@ func (s *Scheduler) addEvent(ev repository.UserEvent) error {
 		return fmt.Errorf("url is required")
 	}
 
-	entryID, err := s.cron.AddFunc(spec, func() { s.runJob(ev) })
+	entryID, err := s.cron.AddFunc(spec, func() { go s.runJob(ev) })
 	if err != nil {
 		return fmt.Errorf("invalid cron_spec: %w", err)
 	}
@@ -272,14 +273,14 @@ func normalizeCronSpec(spec string) string {
 
 // jobData is the data available inside a body_template.
 type jobData struct {
-	EventID      string
-	UserID       string
-	EventName    string
-	CronSpec     string
-	HumanSpec    string
-	URL          string
-	HTTPMethod   string
-	FiredAt      time.Time
+	EventID    string
+	UserID     string
+	EventName  string
+	CronSpec   string
+	HumanSpec  string
+	URL        string
+	HTTPMethod string
+	FiredAt    time.Time
 }
 
 func (s *Scheduler) runJob(ev repository.UserEvent) {
@@ -296,17 +297,19 @@ func (s *Scheduler) runJob(ev repository.UserEvent) {
 		FiredAt:    fired,
 	}
 
+	dbgo.Printf("%(red)Staring event %s at %v\n", data.EventID, data.FiredAt)
+
 	// Render body template.
 	tmpl, err := template.New("body").Parse(ev.BodyTemplate)
 	if err != nil {
-		s.log.Error("scheduler: parse body_template",
-			"event_id", ev.EventID, "err", err)
+		dbgo.Printf("%(Yellow)\terror at %(LF)\n")
+		s.log.Error("scheduler: parse body_template", "event_id", ev.EventID, "err", err)
 		return
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		s.log.Error("scheduler: execute body_template",
-			"event_id", ev.EventID, "err", err)
+		dbgo.Printf("%(Yellow)\terror at %(LF)\n")
+		s.log.Error("scheduler: execute body_template", "event_id", ev.EventID, "err", err)
 		return
 	}
 
@@ -323,8 +326,8 @@ func (s *Scheduler) runJob(ev repository.UserEvent) {
 
 	req, err := http.NewRequest(method, ev.URL, body)
 	if err != nil {
-		s.log.Error("scheduler: build request",
-			"event_id", ev.EventID, "url", ev.URL, "err", err)
+		dbgo.Printf("%(Yellow)\terror at %(LF)\n")
+		s.log.Error("scheduler: build request", "event_id", ev.EventID, "url", ev.URL, "err", err)
 		return
 	}
 	if body != nil {
@@ -333,15 +336,14 @@ func (s *Scheduler) runJob(ev repository.UserEvent) {
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		s.log.Error("scheduler: http request failed",
-			"event_id", ev.EventID, "url", ev.URL, "method", method, "err", err)
+		dbgo.Printf("%(Yellow)\terror at %(LF)\n")
+		s.log.Error("scheduler: http request failed", "event_id", ev.EventID, "url", ev.URL, "method", method, "err", err)
 		return
 	}
 	defer resp.Body.Close()
 	// Drain the body so the connection can be reused.
 	_, _ = io.Copy(io.Discard, resp.Body)
 
-	s.log.Info("scheduler: job fired",
-		"event_id", ev.EventID, "event_name", ev.EventName,
-		"url", ev.URL, "method", method, "status", resp.StatusCode)
+	dbgo.Printf("%(yellow)Ending  event %s at %v\n", data.EventID, data.FiredAt)
+	s.log.Info("scheduler: job fired", "event_id", ev.EventID, "event_name", ev.EventName, "url", ev.URL, "method", method, "status", resp.StatusCode)
 }
