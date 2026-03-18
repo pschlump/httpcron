@@ -3,6 +3,11 @@ all: test
 
 test: test_setup test01 test02 test_passed
 
+# func TestSetDefaults_StringFields(t *testing.T) {
+test_env:
+	go test -v -run TestSetDefaults_StringFields
+
+
 test_setup:
 
 test_passed:

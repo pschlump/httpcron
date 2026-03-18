@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // Config contains the configuration of the url shortener.
@@ -16,8 +17,8 @@ type Config struct {
 		DbKind           string `json:"db_kind" default:"sqlite"`
 		DbPgAuthUseURL   string `json:"pg_auth_use_url" default:"yes"`
 		DbPgAuthURL      string `json:"pg_auth_url" default:"postgres://127.0.0.1:5432/httpcron"`
-		DbPgAuthUsername string `json:"pg_auth_username" default:"postgres://127.0.0.1:5432/httpcron"`
-		DbPgAuthPassword string `json:"pg_auth_password" default:""`
+		DbPgAuthUsername string `json:"pg_auth_username" default:"httpcron"`
+		DbPgAuthPassword string `json:"pg_auth_password" default:"$ENV$pg_password"`
 		DbPgAuthDatabase string `json:"pg_auth_database" default:"httpcron"`
 		DbPgAuthHost     string `json:"pg_auth_host" default:"127.0.0.1"`
 		DbPgAuthPort     string `json:"pg_auth_port" default:"5432"`
@@ -117,6 +118,12 @@ func setDefaults(rv reflect.Value) error {
 
 // setFieldDefault sets a single field's default value
 func setFieldDefault(field reflect.Value, defaultValue string, fieldName string) error {
+	if strings.HasPrefix(defaultValue, "$ENV$") {
+		envVarName := defaultValue[len("$ENV$"):]
+		value := os.Getenv(envVarName)
+		// dbgo.Printf("%(LF) %(yellow)Found a $ENV$ marked item >%s< >%s< value >%s<\n", defaultValue, envVarName, value)
+		defaultValue = value
+	}
 	switch field.Kind() {
 	case reflect.String:
 		field.SetString(defaultValue)

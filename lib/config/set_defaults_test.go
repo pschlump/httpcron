@@ -10,6 +10,7 @@ func TestSetDefaults_StringFields(t *testing.T) {
 		Name    string `default:"TestApp"`
 		Version string `default:"1.0.0"`
 		NoTag   string
+		EnvTest string `default:"$ENV$zABz912839012038129038012890312983812"`
 	}
 
 	config := &Config{}
@@ -25,6 +26,10 @@ func TestSetDefaults_StringFields(t *testing.T) {
 
 	if config.Version != "1.0.0" {
 		t.Errorf("expected Version='1.0.0', got '%s'", config.Version)
+	}
+
+	if config.EnvTest != "" {
+		t.Errorf("expected EnvTest='', got '%s'", config.EnvTest)
 	}
 
 	if config.NoTag != "" {
