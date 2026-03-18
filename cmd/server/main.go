@@ -73,7 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	repo, err := repository.NewRepository(cfg.Server.DbPath)
+	repo, err := repository.NewRepository(cfg)
 	if err != nil {
 		log.Error("open database", "err", err)
 		os.Exit(1)
@@ -109,7 +109,7 @@ func main() {
 	log.Info("shutdown complete")
 }
 
-func runHTTPServer(ctx context.Context, log *slog.Logger, repo *repository.Repository, addr, regKey string, sched *scheduler.Scheduler, cfg *config.Config) {
+func runHTTPServer(ctx context.Context, log *slog.Logger, repo repository.Repository, addr, regKey string, sched *scheduler.Scheduler, cfg *config.Config) {
 	h := handler.NewHandler(repo, regKey, log, sched, cfg)
 
 	r := chi.NewRouter()

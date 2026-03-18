@@ -12,17 +12,30 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pschlump/httpcron/lib/config"
 	"github.com/pschlump/httpcron/lib/repository"
 )
 
 const testRegKey = "test-registration-key-abc123"
+
+// newTestConfig creates a test config with SQLite database.
+func newTestConfig(dbPath string) *config.Config {
+	cfg := &config.Config{}
+	if err := config.SetDefaults(cfg); err != nil {
+		panic(err)
+	}
+	cfg.Server.DbKind = "sqlite"
+	cfg.Server.DbPath = dbPath
+	return cfg
+}
 
 // newTestHandler creates a handler with a test repository and logger.
 func newTestHandler(t *testing.T) (*Handler, func()) {
 	t.Helper()
 
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	cfg := newTestConfig(dbPath)
+	repo, err := repository.NewRepository(cfg)
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -41,7 +54,8 @@ func newTestHandler(t *testing.T) (*Handler, func()) {
 // TestNewHandler verifies that a new handler can be created.
 func TestNewHandler(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	cfg := newTestConfig(dbPath)
+	repo, err := repository.NewRepository(cfg)
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -315,6 +329,7 @@ func TestCreateTimedEvent_InvalidAPIKey(t *testing.T) {
 		"event_name":       "test-event",
 		"per_user_api_key": "invalid-key",
 		"cron_spec":        "0 0 * * *",
+		"url":              "http://example.com/test",
 	}
 	reqBody, _ := json.Marshal(body)
 
@@ -327,8 +342,8 @@ func TestCreateTimedEvent_InvalidAPIKey(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 422 /*http.StatusUnauthorized*/ {
-		t.Errorf("expected status 422, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", resp.StatusCode)
 	}
 }
 
@@ -509,8 +524,8 @@ func TestUpdateTimedEvent_NotFound(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 422 /*http.StatusNotFound*/ {
-		t.Errorf("expected status 422, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", resp.StatusCode)
 	}
 }
 
@@ -581,8 +596,8 @@ func TestUpdateTimedEvent_InvalidAPIKey(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 422 /*http.StatusUnauthorized*/ {
-		t.Errorf("expected status 422, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", resp.StatusCode)
 	}
 }
 
@@ -945,7 +960,8 @@ func TestSearchTimedEvent_EmptySearch(t *testing.T) {
 // TestSchedulerIntegration verifies that handlers work with nil scheduler (graceful degradation).
 func TestSchedulerIntegration(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	cfg := newTestConfig(dbPath)
+	repo, err := repository.NewRepository(cfg)
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}

@@ -2,6 +2,14 @@
 	"server": {
 		"host": "0.0.0.0",
 		"port": "8080",
+		"db_kind": "sqlite",
+		"pg_auth_use_url": "yes",
+		"pg_auth_url": "postgres://127.0.0.1:5432/httpcron",
+		"pg_auth_username": "postgres://127.0.0.1:5432/httpcron",
+		"pg_auth_password": "",
+		"pg_auth_database": "httpcron",
+		"pg_auth_host": "127.0.0.1",
+		"pg_auth_port": "5432",
 		"db_path": "httpcron.db"
 	},
 	"debug": {

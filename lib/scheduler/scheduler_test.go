@@ -12,13 +12,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pschlump/httpcron/lib/config"
 	"github.com/pschlump/httpcron/lib/repository"
 )
+
+// newTestConfig creates a test config with SQLite database.
+func newTestConfig(dbPath string) *config.Config {
+	cfg := &config.Config{}
+	if err := config.SetDefaults(cfg); err != nil {
+		panic(err)
+	}
+	cfg.Server.DbKind = "sqlite"
+	cfg.Server.DbPath = dbPath
+	return cfg
+}
 
 // TestNewScheduler verifies that a new scheduler can be created.
 func TestNewScheduler(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -120,7 +132,7 @@ func TestNormalizeCronSpec(t *testing.T) {
 // TestAddEventNotStarted verifies that AddEvent returns an error when the scheduler hasn't started.
 func TestAddEventNotStarted(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -152,7 +164,7 @@ func TestAddEventNotStarted(t *testing.T) {
 // TestUpdateEventNotStarted verifies that UpdateEvent returns an error when the scheduler hasn't started.
 func TestUpdateEventNotStarted(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -184,7 +196,7 @@ func TestUpdateEventNotStarted(t *testing.T) {
 // TestDeleteEventNotStarted verifies that DeleteEvent returns an error when the scheduler hasn't started.
 func TestDeleteEventNotStarted(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -210,7 +222,7 @@ func TestDeleteEventNotStarted(t *testing.T) {
 // TestStartAndAddEvent verifies that events can be added after the scheduler starts.
 func TestStartAndAddEvent(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -268,7 +280,7 @@ func TestStartAndAddEvent(t *testing.T) {
 // TestUpdateEvent verifies that an existing event can be updated.
 func TestUpdateEvent(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -335,7 +347,7 @@ func TestUpdateEvent(t *testing.T) {
 // TestUpdateEventNotFound verifies that updating a non-existent event returns an error.
 func TestUpdateEventNotFound(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -383,7 +395,7 @@ func TestUpdateEventNotFound(t *testing.T) {
 // TestDeleteEvent verifies that an existing event can be deleted.
 func TestDeleteEvent(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -452,7 +464,7 @@ func TestDeleteEvent(t *testing.T) {
 // TestDeleteEventNotFound verifies that deleting a non-existent event returns an error.
 func TestDeleteEventNotFound(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -493,7 +505,7 @@ func TestDeleteEventNotFound(t *testing.T) {
 // TestAddEventInvalidCronSpec verifies that adding an event with an invalid cron spec returns an error.
 func TestAddEventInvalidCronSpec(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -559,7 +571,7 @@ func TestAddEventInvalidCronSpec(t *testing.T) {
 // TestRunJob verifies that runJob executes HTTP requests correctly.
 func TestRunJob(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -623,7 +635,7 @@ func TestRunJob(t *testing.T) {
 // TestRunJobGETMethod verifies that GET requests don't include a body.
 func TestRunJobGETMethod(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -671,7 +683,7 @@ func TestRunJobGETMethod(t *testing.T) {
 // TestRunJobDefaultMethod verifies that empty HTTPMethod defaults to POST.
 func TestRunJobDefaultMethod(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -712,7 +724,7 @@ func TestRunJobDefaultMethod(t *testing.T) {
 // TestRunJobInvalidTemplate verifies that runJob handles invalid templates gracefully.
 func TestRunJobInvalidTemplate(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -741,7 +753,7 @@ func TestRunJobInvalidTemplate(t *testing.T) {
 // TestStartWithRepositoryEvents verifies that Start loads events from the repository.
 func TestStartWithRepositoryEvents(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -794,7 +806,7 @@ func TestStartWithRepositoryEvents(t *testing.T) {
 // TestStartSkipEventsWithNoCronSpec verifies that events without cron_spec are skipped.
 func TestStartSkipEventsWithNoCronSpec(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}
@@ -847,7 +859,7 @@ func TestStartSkipEventsWithNoCronSpec(t *testing.T) {
 // TestStartSkipEventsWithNoURL verifies that events without URL are skipped.
 func TestStartSkipEventsWithNoURL(t *testing.T) {
 	dbPath := t.TempDir() + "/test.db"
-	repo, err := repository.NewRepository(dbPath)
+	repo, err := repository.NewRepository(newTestConfig(dbPath))
 	if err != nil {
 		t.Fatalf("NewRepository failed: %v", err)
 	}

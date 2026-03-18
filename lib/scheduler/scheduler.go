@@ -34,7 +34,7 @@ type SchedulerOp struct {
 
 // Scheduler loads events from the repository and fires HTTP requests on their cron schedules.
 type Scheduler struct {
-	repo     *repository.Repository
+	repo     repository.Repository
 	log      *slog.Logger
 	client   *http.Client
 	cron     *cron.Cron
@@ -45,7 +45,7 @@ type Scheduler struct {
 }
 
 // New creates a Scheduler.
-func New(repo *repository.Repository, log *slog.Logger) *Scheduler {
+func New(repo repository.Repository, log *slog.Logger) *Scheduler {
 	return &Scheduler{
 		repo: repo,
 		log:  log,

@@ -11,9 +11,17 @@ import (
 // Config contains the configuration of the url shortener.
 type Config struct {
 	Server struct {
-		Host   string `json:"host" default:"127.0.0.1"`
-		Port   string `json:"port" default:"9118"`
-		DbPath string `json:"db_path" default:"httpcron.db"`
+		Host             string `json:"host" default:"127.0.0.1"`
+		Port             string `json:"port" default:"9118"`
+		DbKind           string `json:"db_kind" default:"sqlite"`
+		DbPgAuthUseURL   string `json:"pg_auth_use_url" default:"yes"`
+		DbPgAuthURL      string `json:"pg_auth_url" default:"postgres://127.0.0.1:5432/httpcron"`
+		DbPgAuthUsername string `json:"pg_auth_username" default:"postgres://127.0.0.1:5432/httpcron"`
+		DbPgAuthPassword string `json:"pg_auth_password" default:""`
+		DbPgAuthDatabase string `json:"pg_auth_database" default:"httpcron"`
+		DbPgAuthHost     string `json:"pg_auth_host" default:"127.0.0.1"`
+		DbPgAuthPort     string `json:"pg_auth_port" default:"5432"`
+		DbPath           string `json:"db_path" default:"httpcron.db"`
 	} `json:"server"`
 	Debug struct {
 		Enabled map[string]bool `json:"enabled"`

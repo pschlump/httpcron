@@ -21,7 +21,7 @@ func humanToCron(humanSpec string) (string, error) {
 
 // Handler holds dependencies for all HTTP handlers.
 type Handler struct {
-	repo            *repository.Repository
+	repo            repository.Repository
 	registrationKey string
 	log             *slog.Logger
 	sched           *scheduler.Scheduler
@@ -29,7 +29,7 @@ type Handler struct {
 }
 
 // NewHandler creates a Handler with the given dependencies.
-func NewHandler(repo *repository.Repository, registrationKey string, log *slog.Logger, sched *scheduler.Scheduler, cfg *config.Config) *Handler {
+func NewHandler(repo repository.Repository, registrationKey string, log *slog.Logger, sched *scheduler.Scheduler, cfg *config.Config) *Handler {
 	return &Handler{
 		repo:            repo,
 		registrationKey: registrationKey,
@@ -163,7 +163,7 @@ type updateTimedEventRequest struct {
 	CronSpec      *string `json:"cron_spec"`
 	HumanSpec     *string `json:"human_spec"`
 	BodyTemplate  *string `json:"body_template"`
-	URL           *string `json:"url" validate:"url"`
+	URL           *string `json:"url" validate:"omitempty,url"`
 	HTTPMethod    *string `json:"http_method"`
 }
 

@@ -15,9 +15,21 @@ import (
 
 	schedpkg "github.com/pschlump/httpcron/lib/scheduler"
 
+	"github.com/pschlump/httpcron/lib/config"
 	"github.com/pschlump/httpcron/lib/handler"
 	"github.com/pschlump/httpcron/lib/repository"
 )
+
+// newTestConfig creates a test config with SQLite database.
+func newTestConfig(dbPath string) *config.Config {
+	cfg := &config.Config{}
+	if err := config.SetDefaults(cfg); err != nil {
+		panic(err)
+	}
+	cfg.Server.DbKind = "sqlite"
+	cfg.Server.DbPath = dbPath
+	return cfg
+}
 
 const testRegKey = "test-registration-key-abc123"
 
@@ -25,14 +37,16 @@ const testRegKey = "test-registration-key-abc123"
 func newTestServer(t *testing.T) (*httptest.Server, func()) {
 	t.Helper()
 
-	repo, err := repository.NewRepository(t.TempDir() + "/test.db")
+	dbPath := t.TempDir() + "/test.db"
+	cfg := newTestConfig(dbPath)
+	repo, err := repository.NewRepository(cfg)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	// Note: Scheduler and cfg are nil for tests; the handler will skip scheduler operations when not started.
-	h := handler.NewHandler(repo, testRegKey, log, (*schedpkg.Scheduler)(nil), nil)
+	// Note: Scheduler is nil for tests; the handler will skip scheduler operations when not started.
+	h := handler.NewHandler(repo, testRegKey, log, (*schedpkg.Scheduler)(nil), cfg)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -145,6 +159,7 @@ func TestCreateTimedEvent_CronSpec(t *testing.T) {
 		"event_name":       "backup",
 		"per_user_api_key": apiKey,
 		"cron_spec":        "*/5 * * * *",
+		"url":              "http://example.com/backup",
 	})
 
 	if resp.StatusCode != http.StatusOK {
@@ -168,6 +183,7 @@ func TestCreateTimedEvent_HumanSpec(t *testing.T) {
 		"event_name":       "heartbeat",
 		"per_user_api_key": apiKey,
 		"human_spec":       "@every 1m",
+		"url":              "http://example.com/heartbeat",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -182,6 +198,7 @@ func TestCreateTimedEvent_InvalidAPIKey(t *testing.T) {
 		"event_name":       "backup",
 		"per_user_api_key": "bad-key",
 		"cron_spec":        "*/5 * * * *",
+		"url":              "http://example.com/backup",
 	})
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", resp.StatusCode)
@@ -196,6 +213,7 @@ func TestCreateTimedEvent_MissingSchedule(t *testing.T) {
 	resp, _ := postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
 		"event_name":       "backup",
 		"per_user_api_key": apiKey,
+		"url":              "http://example.com/backup",
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
@@ -213,6 +231,7 @@ func TestUpdateTimedEvent_Success(t *testing.T) {
 		"event_name":       "original",
 		"per_user_api_key": apiKey,
 		"cron_spec":        "@daily",
+		"url":              "http://example.com/original",
 	})
 	eventID := cb["event_id"].(string)
 
@@ -256,6 +275,7 @@ func TestDeleteTimedEvent_Success(t *testing.T) {
 		"event_name":       "to-delete",
 		"per_user_api_key": apiKey,
 		"cron_spec":        "@hourly",
+		"url":              "http://example.com/delete",
 	})
 	eventID := cb["event_id"].(string)
 
@@ -291,10 +311,10 @@ func TestListTimedEvent_Success(t *testing.T) {
 	apiKey := registerUser(t, ts)
 
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "event-alpha", "per_user_api_key": apiKey, "cron_spec": "@daily",
+		"event_name": "event-alpha", "per_user_api_key": apiKey, "cron_spec": "@daily", "url": "http://example.com/alpha",
 	})
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "event-beta", "per_user_api_key": apiKey, "cron_spec": "@hourly",
+		"event_name": "event-beta", "per_user_api_key": apiKey, "cron_spec": "@hourly", "url": "http://example.com/beta",
 	})
 
 	resp, body := postJSON(t, ts, "/api/v1/list-timed-event", map[string]string{
@@ -343,10 +363,10 @@ func TestSearchTimedEvent_PartialMatch(t *testing.T) {
 
 	apiKey := registerUser(t, ts)
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "daily-backup", "per_user_api_key": apiKey, "cron_spec": "@daily",
+		"event_name": "daily-backup", "per_user_api_key": apiKey, "cron_spec": "@daily", "url": "http://example.com/backup",
 	})
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "hourly-ping", "per_user_api_key": apiKey, "cron_spec": "@hourly",
+		"event_name": "hourly-ping", "per_user_api_key": apiKey, "cron_spec": "@hourly", "url": "http://example.com/ping",
 	})
 
 	resp, body := postJSON(t, ts, "/api/v1/search-timed-event", map[string]string{
@@ -368,7 +388,7 @@ func TestSearchTimedEvent_NoMatch(t *testing.T) {
 
 	apiKey := registerUser(t, ts)
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "daily-backup", "per_user_api_key": apiKey, "cron_spec": "@daily",
+		"event_name": "daily-backup", "per_user_api_key": apiKey, "cron_spec": "@daily", "url": "http://example.com/backup",
 	})
 
 	resp, body := postJSON(t, ts, "/api/v1/search-timed-event", map[string]string{
@@ -390,10 +410,10 @@ func TestSearchTimedEvent_AllWhenEmpty(t *testing.T) {
 
 	apiKey := registerUser(t, ts)
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "alpha", "per_user_api_key": apiKey, "cron_spec": "@daily",
+		"event_name": "alpha", "per_user_api_key": apiKey, "cron_spec": "@daily", "url": "http://example.com/alpha",
 	})
 	postJSON(t, ts, "/api/v1/create-timed-event", map[string]string{
-		"event_name": "beta", "per_user_api_key": apiKey, "cron_spec": "@hourly",
+		"event_name": "beta", "per_user_api_key": apiKey, "cron_spec": "@hourly", "url": "http://example.com/beta",
 	})
 
 	// Empty event_name should match all
