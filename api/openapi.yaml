@@ -187,7 +187,7 @@ components:
 
     CreateTimedEventRequest:
       type: object
-      required: [event_name, per_user_api_key]
+      required: [event_name, per_user_api_key, body_template]
       properties:
         event_name:
           type: string
@@ -211,7 +211,7 @@ components:
 
     UpdateTimedEventRequest:
       type: object
-      required: [event_id, per_user_api_key]
+      required: [event_id, per_user_api_key, body_template]
       properties:
         event_id:
           type: string

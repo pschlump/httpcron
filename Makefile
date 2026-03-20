@@ -1,5 +1,7 @@
 BINARY  := httpcron
+CLIENT  := httpclient
 CMD     := ./cmd/server
+CLICMD     := ./cmd/http-server
 BIN_DIR := bin
 
 DB_PATH          ?= httpcron.db
@@ -13,6 +15,7 @@ build:
 	@mkdir -p $(BIN_DIR)
 	( cd ./cmd/server ; ../../bin/generate-git-commit.sh )
 	go build -o $(BIN_DIR)/$(BINARY) $(CMD)
+	go build -o $(BIN_DIR)/$(CLIENT) $(CMD)
 
 ## run: run the server (set REGISTRATION_KEY env var for non-dev use)
 run:
@@ -45,7 +48,7 @@ clean:
 
 # git push origin v1.0.0
 git_set_tag:
-	git tag v0.0.5
+	git tag v0.0.6
 	git push origin --tags
 
 .DEFAULT_GOAL := build

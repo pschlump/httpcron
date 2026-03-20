@@ -3,3 +3,4 @@ bin/httpcron
 httpcron.db
 ,*
 server
+http-server

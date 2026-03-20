@@ -76,7 +76,14 @@ func (r *postgresRepository) migrate() error {
 		http_method   TEXT NOT NULL DEFAULT 'POST',
 		created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);`
+	);
+	CREATE TABLE IF NOT EXISTS admin_user_auth (
+		user_id          TEXT PRIMARY KEY,
+		username		 TEXT NOT NULL,
+		password_hash	 TEXT NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS admin_user_auth_p1 on admin_user_auth ( username );
+	`
 	if _, err := r.db.Exec(schema); err != nil {
 		return err
 	}

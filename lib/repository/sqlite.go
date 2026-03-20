@@ -55,7 +55,13 @@ func (r *sqliteRepository) migrate() error {
 		body_template TEXT NOT NULL DEFAULT '',
 		created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`
+	);
+	CREATE TABLE IF NOT EXISTS admin_user_auth (
+		user_id          TEXT PRIMARY KEY,
+		username		 TEXT NOT NULL,
+		password_hash	 TEXT NOT NULL
+	);
+	`
 	if _, err := r.db.Exec(schema); err != nil {
 		return err
 	}
@@ -63,6 +69,7 @@ func (r *sqliteRepository) migrate() error {
 	for _, stmt := range []string{
 		`ALTER TABLE user_events ADD COLUMN url TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE user_events ADD COLUMN http_method TEXT NOT NULL DEFAULT 'POST'`,
+		`CREATE INDEX admin_user_auth_p1 on admin_user_auth ( username )`,
 	} {
 		if _, err := r.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
