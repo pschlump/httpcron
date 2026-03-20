@@ -52,7 +52,7 @@ func main() {
 	}
 
 	if *VersionFlag {
-		fmt.Printf("Version (Git Commit Version): %s Built on: %s\n", Version, BuildDate)
+		fmt.Printf("Version: %s Git Commit Version: %s Built on: %s\n", Version, GitCommit, BuildDate)
 		os.Exit(0)
 	}
 

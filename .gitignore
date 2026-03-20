@@ -4,3 +4,4 @@ httpcron.db
 ,*
 server
 http-server
+bin/httpclient
