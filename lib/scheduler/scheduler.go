@@ -76,7 +76,6 @@ func (s *Scheduler) Start(ctx context.Context) error {
 
 	s.log.Info("scheduler: loading events", "count", len(events))
 	for _, ev := range events {
-		ev := ev // pin loop variable for the closure
 
 		spec := normalizeCronSpec(ev.CronSpec)
 		if spec == "" {

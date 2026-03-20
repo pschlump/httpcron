@@ -90,20 +90,16 @@ func main() {
 	sched := scheduler.New(repo, log)
 
 	// Goroutine 1 — HTTP server.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		runHTTPServer(ctx, log, repo, addr, regKey, sched, cfg)
-	}()
+	})
 
 	// Goroutine 2 — cron scheduler.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		if err := sched.Start(ctx); err != nil {
 			log.Error("scheduler error", "err", err)
 		}
-	}()
+	})
 
 	wg.Wait()
 	log.Info("shutdown complete")

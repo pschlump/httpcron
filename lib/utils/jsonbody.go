@@ -18,7 +18,7 @@ func init() {
 	validate = validator.New(validator.WithRequiredStructEnabled())
 }
 
-func JsonBody(w http.ResponseWriter, r *http.Request, cfg *config.Config, data interface{}) error {
+func JsonBody(w http.ResponseWriter, r *http.Request, cfg *config.Config, data any) error {
 
 	// Apply Defaults
 	err := config.SetDefaults(data)

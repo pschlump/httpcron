@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
+	"os"
+
 	"log"
 
 	_ "github.com/lib/pq"
@@ -50,7 +52,7 @@ func main() {
 	}
 
 	if false {
-		ioutil.WriteFile("test-config-validate.json", []byte(dbgo.SVarI(cfg)), 0644)
+		os.WriteFile("test-config-validate.json", []byte(dbgo.SVarI(cfg)), 0644)
 	}
 
 	// Test connection

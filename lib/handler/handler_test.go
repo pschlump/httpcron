@@ -240,7 +240,7 @@ func TestCreateTimedEvent_Success(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_name":       "test-event",
 		"per_user_api_key": user.PerUserAPIKey,
 		"cron_spec":        "0 0 * * *",
@@ -287,7 +287,7 @@ func TestCreateTimedEvent_HumanSpec(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_name":       "test-event",
 		"per_user_api_key": user.PerUserAPIKey,
 		"human_spec":       "every day",
@@ -325,7 +325,7 @@ func TestCreateTimedEvent_InvalidAPIKey(t *testing.T) {
 	h, cleanup := newTestHandler(t)
 	defer cleanup()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_name":       "test-event",
 		"per_user_api_key": "invalid-key",
 		"cron_spec":        "0 0 * * *",
@@ -359,12 +359,12 @@ func TestCreateTimedEvent_MissingRequiredFields(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		body       map[string]interface{}
+		body       map[string]any
 		wantStatus int
 	}{
 		{
 			name: "missing event_name",
-			body: map[string]interface{}{
+			body: map[string]any{
 				"per_user_api_key": user.PerUserAPIKey,
 				"cron_spec":        "0 0 * * *",
 			},
@@ -372,7 +372,7 @@ func TestCreateTimedEvent_MissingRequiredFields(t *testing.T) {
 		},
 		{
 			name: "missing per_user_api_key",
-			body: map[string]interface{}{
+			body: map[string]any{
 				"event_name": "test-event",
 				"cron_spec":  "0 0 * * *",
 			},
@@ -380,7 +380,7 @@ func TestCreateTimedEvent_MissingRequiredFields(t *testing.T) {
 		},
 		{
 			name: "missing both cron_spec and human_spec",
-			body: map[string]interface{}{
+			body: map[string]any{
 				"event_name":       "test-event",
 				"per_user_api_key": user.PerUserAPIKey,
 			},
@@ -418,7 +418,7 @@ func TestCreateTimedEvent_InvalidHumanSpec(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_name":       "test-event",
 		"per_user_api_key": user.PerUserAPIKey,
 		"human_spec":       "invalid schedule spec",
@@ -464,7 +464,7 @@ func TestUpdateTimedEvent_Success(t *testing.T) {
 	}
 
 	newName := "updated-event"
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_id":         event.EventID,
 		"per_user_api_key": user.PerUserAPIKey,
 		"event_name":       newName,
@@ -508,7 +508,7 @@ func TestUpdateTimedEvent_NotFound(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_id":         "evid-nonexistent",
 		"per_user_api_key": user.PerUserAPIKey,
 		"event_name":       "updated",
@@ -544,7 +544,7 @@ func TestUpdateTimedEvent_WithHumanSpec(t *testing.T) {
 		t.Fatalf("CreateEvent failed: %v", err)
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_id":         event.EventID,
 		"per_user_api_key": user.PerUserAPIKey,
 		"human_spec":       "every hour",
@@ -580,7 +580,7 @@ func TestUpdateTimedEvent_InvalidAPIKey(t *testing.T) {
 	h, cleanup := newTestHandler(t)
 	defer cleanup()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_id":         "evid-test",
 		"per_user_api_key": "invalid-key",
 		"event_name":       "updated",
@@ -981,7 +981,7 @@ func TestSchedulerIntegration(t *testing.T) {
 	}
 
 	// Create an event via handler - should succeed even without scheduler.
-	body := map[string]interface{}{
+	body := map[string]any{
 		"event_name":       "test-event",
 		"per_user_api_key": user.PerUserAPIKey,
 		"cron_spec":        "0 0 * * *",

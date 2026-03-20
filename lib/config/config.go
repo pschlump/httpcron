@@ -51,11 +51,11 @@ func FromFile(path string) (*Config, error) {
 
 // SetDefaults walks through a struct and sets default values from "default" tags
 // The input must be a pointer to a struct
-func SetDefaults(v interface{}) error {
+func SetDefaults(v any) error {
 	rv := reflect.ValueOf(v)
 
 	// Must be a pointer
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return fmt.Errorf("SetDefaults requires a pointer to a struct, got %v", rv.Kind())
 	}
 
@@ -92,7 +92,7 @@ func setDefaults(rv reflect.Value) error {
 		}
 
 		// If field is a pointer to a struct, initialize and recurse
-		if field.Kind() == reflect.Ptr && field.Type().Elem().Kind() == reflect.Struct {
+		if field.Kind() == reflect.Pointer && field.Type().Elem().Kind() == reflect.Struct {
 			if field.IsNil() {
 				field.Set(reflect.New(field.Type().Elem()))
 			}
