@@ -17,6 +17,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/yarlson/chiprom"
 
 	httpapi "github.com/pschlump/httpcron/api"
 	"github.com/pschlump/httpcron/lib/config"
@@ -114,6 +116,7 @@ func runHTTPServer(ctx context.Context, log *slog.Logger, repo repository.Reposi
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
+	r.Use(chiprom.NewMiddleware("httpcron"))
 
 	// API endpoints.
 	r.Post("/api/v1/self-register", h.SelfRegister)
@@ -137,6 +140,9 @@ func runHTTPServer(ctx context.Context, log *slog.Logger, repo repository.Reposi
 	}
 	r.Handle("/swagger", http.RedirectHandler("/swagger/", http.StatusMovedPermanently))
 	r.Handle("/swagger/*", http.StripPrefix("/swagger", http.FileServer(http.FS(uiFS))))
+
+	// Prometheus metrics endpoint.
+	r.Handle("/metrics", promhttp.Handler())
 
 	srv := &http.Server{Addr: addr, Handler: r}
 
